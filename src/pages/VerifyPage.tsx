@@ -120,6 +120,7 @@ const VerifyPage = () => {
         )}
 
       </div>
+      
     </div>
   );
 };
