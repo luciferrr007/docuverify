@@ -134,6 +134,7 @@
   animation: fade-in-up 0.5s ease-out forwards;
 }
 
+
 .animate-pulse-gentle {
   animation: pulse-gentle 2s ease-in-out infinite;
 }
