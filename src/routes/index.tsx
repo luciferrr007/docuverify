@@ -1,4 +1,4 @@
-import { Link } from "react-router-dom";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
 import FeatureCard from "@/components/FeatureCard";
 import {
@@ -12,7 +12,27 @@ import {
   ArrowRight,
 } from "lucide-react";
 
-const Landing = () => {
+export const Route = createFileRoute("/")({
+  head: () => ({
+    meta: [
+      { title: "DocuVerify — Blockchain-Anchored Document Verification" },
+      {
+        name: "description",
+        content:
+          "Decentralized verification of structured document data using blockchain-anchored cryptographic integrity proofs.",
+      },
+      { property: "og:title", content: "DocuVerify — Blockchain-Anchored Verification" },
+      {
+        property: "og:description",
+        content:
+          "Decentralized verification of structured document data using cryptographic integrity proofs.",
+      },
+    ],
+  }),
+  component: Landing,
+});
+
+function Landing() {
   return (
     <div className="min-h-screen">
       {/* Hero */}
@@ -29,8 +49,8 @@ const Landing = () => {
                 DocuVerify
               </h1>
               <p className="mb-8 text-lg leading-relaxed text-muted-foreground">
-                Decentralized verification of structured document data using
-                blockchain-anchored cryptographic integrity proofs.
+                Decentralized verification of structured document data using blockchain-anchored
+                cryptographic integrity proofs.
               </p>
               <div className="flex flex-wrap gap-3">
                 <Button asChild size="lg">
@@ -68,9 +88,7 @@ const Landing = () => {
       <section className="container mx-auto px-4 py-16 lg:px-8 lg:py-20">
         <div className="mb-12 text-center">
           <h2 className="mb-3 text-2xl font-bold text-foreground">How It Works</h2>
-          <p className="text-muted-foreground">
-            Three pillars of trustless document verification
-          </p>
+          <p className="text-muted-foreground">Three pillars of trustless document verification</p>
         </div>
         <div className="grid gap-6 md:grid-cols-3">
           <FeatureCard
@@ -95,12 +113,8 @@ const Landing = () => {
       <section className="border-t bg-card">
         <div className="container mx-auto px-4 py-16 lg:px-8 lg:py-20">
           <div className="mb-12 text-center">
-            <h2 className="mb-3 text-2xl font-bold text-foreground">
-              Security Features
-            </h2>
-            <p className="text-muted-foreground">
-              Enterprise-grade trust guarantees
-            </p>
+            <h2 className="mb-3 text-2xl font-bold text-foreground">Security Features</h2>
+            <p className="text-muted-foreground">Enterprise-grade trust guarantees</p>
           </div>
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
             <FeatureCard
@@ -128,6 +142,4 @@ const Landing = () => {
       </section>
     </div>
   );
-};
-
-export default Landing;
+}

@@ -1,12 +1,12 @@
-import { Link, useLocation } from "react-router-dom";
+import { Link, useRouterState } from "@tanstack/react-router";
 import { Shield } from "lucide-react";
 
 const Navbar = () => {
-  const location = useLocation();
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
 
   const linkClass = (path: string) =>
     `text-sm font-medium transition-colors hover:text-primary ${
-      location.pathname === path ? "text-primary" : "text-muted-foreground"
+      pathname === path ? "text-primary" : "text-muted-foreground"
     }`;
 
   return (
@@ -14,9 +14,7 @@ const Navbar = () => {
       <div className="container mx-auto flex h-16 items-center justify-between px-4 lg:px-8">
         <Link to="/" className="flex items-center gap-2">
           <Shield className="h-7 w-7 text-primary" />
-          <span className="text-xl font-bold text-foreground tracking-tight">
-            DocuVerify
-          </span>
+          <span className="text-xl font-bold text-foreground tracking-tight">DocuVerify</span>
         </Link>
         <div className="flex items-center gap-6">
           <Link to="/" className={linkClass("/")}>
