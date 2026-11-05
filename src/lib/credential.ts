@@ -10,7 +10,11 @@
  */
 export function createCanonicalData(orderedValues: (string | number | undefined)[]): string {
   return orderedValues
-    .map((value) => String(value ?? "").trim().toUpperCase())
+    .map((value) =>
+      String(value ?? "")
+        .trim()
+        .toUpperCase(),
+    )
     .join("|");
 }
 

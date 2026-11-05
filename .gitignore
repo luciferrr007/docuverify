@@ -11,9 +11,6 @@ node_modules
 dist
 dist-ssr
 .output
-.vinxi
-.tanstack/**
-.nitro
 *.local
 
 # Wrangler / Cloudflare
@@ -30,3 +27,12 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Environment variables
+.env
+.env.*
+!.env.example
+backend/.env
+
+# Backend dependencies
+backend/node_modules/

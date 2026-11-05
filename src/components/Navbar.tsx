@@ -1,8 +1,9 @@
-import { Link, useRouterState } from "@tanstack/react-router";
+import { Link, useLocation } from "react-router-dom";
 import { Shield } from "lucide-react";
 
 const Navbar = () => {
-  const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const location = useLocation();
+  const pathname = location.pathname;
 
   const linkClass = (path: string) =>
     `text-sm font-medium transition-colors hover:text-primary ${
@@ -16,13 +17,16 @@ const Navbar = () => {
           <Shield className="h-7 w-7 text-primary" />
           <span className="text-xl font-bold text-foreground tracking-tight">DocuVerify</span>
         </Link>
+
         <div className="flex items-center gap-6">
           <Link to="/" className={linkClass("/")}>
             Home
           </Link>
+
           <Link to="/issue" className={linkClass("/issue")}>
             Issue
           </Link>
+
           <Link to="/verify" className={linkClass("/verify")}>
             Verify
           </Link>

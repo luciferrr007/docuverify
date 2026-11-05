@@ -1,15 +1,11 @@
-import { defineConfig } from "@lovable.dev/vite-tanstack-config";
+import { defineConfig } from "vite";
+import react from "@vitejs/plugin-react";
+import tailwindcss from "@tailwindcss/vite";
 
 export default defineConfig({
-  vite: {
-    base: "/docuverify/",
+  base: "/docuverify/",
+  resolve: {
+    tsconfigPaths: true,
   },
-
-  tanstackStart: {
-    prerender: {
-      enabled: true,
-      autoStaticPathsDiscovery: true,
-      crawlLinks: false,
-    },
-  },
+  plugins: [react(), tailwindcss()],
 });
