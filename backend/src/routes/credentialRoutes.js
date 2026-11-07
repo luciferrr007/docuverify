@@ -1,14 +1,30 @@
+
 const express = require("express");
 const router = express.Router();
 
 const Credential = require("../models/Credential");
 
-const { generateCredentialFingerprint } = require("../utils/credentialHash");
+const {
+  generateCredentialFingerprint,
+} = require("../utils/credentialHash");
 
+const institutionAuthMiddleware = require("../middleware/institutionAuthMiddleware");
+
+// ==========================================
 // ISSUE A NEW CREDENTIAL
-router.post("/issue", async (req, res) => {
+// ONLY APPROVED INSTITUTIONS CAN ISSUE
+// ==========================================
+
+router.post("/issue", institutionAuthMiddleware, async (req, res) => {
   try {
-    const { tokenId, documentType, documentTypeKey, data, fingerprint, issuedAt } = req.body;
+    const {
+      tokenId,
+      documentType,
+      documentTypeKey,
+      data,
+      fingerprint,
+      issuedAt,
+    } = req.body;
 
     // Check required fields
     if (
@@ -35,11 +51,14 @@ router.post("/issue", async (req, res) => {
       });
     }
 
-    // Generate fingerprint independently on the backend
+    // Generate fingerprint independently on backend
     let calculatedFingerprint;
 
     try {
-      calculatedFingerprint = generateCredentialFingerprint(documentTypeKey, data);
+      calculatedFingerprint = generateCredentialFingerprint(
+        documentTypeKey,
+        data
+      );
     } catch (error) {
       return res.status(400).json({
         success: false,
@@ -51,7 +70,8 @@ router.post("/issue", async (req, res) => {
     if (calculatedFingerprint !== fingerprint.toLowerCase()) {
       return res.status(400).json({
         success: false,
-        message: "Fingerprint mismatch. Credential data integrity check failed.",
+        message:
+          "Fingerprint mismatch. Credential data integrity check failed.",
       });
     }
 
@@ -65,7 +85,8 @@ router.post("/issue", async (req, res) => {
       });
     }
 
-    // Save credential only after successful hash validation
+    // Save credential only after successful authentication
+    // and fingerprint validation
     const credential = await Credential.create({
       tokenId,
       documentType,
@@ -91,7 +112,11 @@ router.post("/issue", async (req, res) => {
   }
 });
 
-// VERIFY A CREDENTIAL USING TOKEN ID
+// ==========================================
+// PUBLIC: VERIFY A CREDENTIAL USING TOKEN ID
+// NO LOGIN REQUIRED
+// ==========================================
+
 router.get("/:tokenId", async (req, res) => {
   try {
     const { tokenId } = req.params;
@@ -105,13 +130,13 @@ router.get("/:tokenId", async (req, res) => {
       });
     }
 
-    // Recalculate fingerprint using the stored credential data
+    // Recalculate fingerprint using stored credential data
     let calculatedFingerprint;
 
     try {
       calculatedFingerprint = generateCredentialFingerprint(
         credential.documentTypeKey,
-        credential.data,
+        credential.data
       );
     } catch (error) {
       return res.status(500).json({
@@ -121,9 +146,11 @@ router.get("/:tokenId", async (req, res) => {
     }
 
     // Compare recalculated and stored fingerprints
-    const integrityValid = calculatedFingerprint === credential.fingerprint;
+    const integrityValid =
+      calculatedFingerprint === credential.fingerprint;
 
-    const isValid = integrityValid && credential.status === "active";
+    const isValid =
+      integrityValid && credential.status === "active";
 
     return res.status(200).json({
       success: true,

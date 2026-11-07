@@ -1,6 +1,8 @@
 
 const express = require("express");
 const mongoose = require("mongoose");
+const bcrypt = require("bcrypt");
+const jwt = require("jsonwebtoken");
 
 const router = express.Router();
 
@@ -17,6 +19,7 @@ router.post("/register", async (req, res) => {
       institutionName,
       officialWebsite,
       officialEmail,
+      password,
       registrationDetails,
       walletAddress,
       verificationDocuments,
@@ -26,6 +29,7 @@ router.post("/register", async (req, res) => {
       !institutionName ||
       !officialWebsite ||
       !officialEmail ||
+      !password ||
       !registrationDetails ||
       !walletAddress
     ) {
@@ -35,9 +39,34 @@ router.post("/register", async (req, res) => {
       });
     }
 
+    if (
+      typeof password !== "string" ||
+      password.length < 8
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Password must contain at least 8 characters.",
+      });
+    }
+
+    if (
+      typeof officialEmail !== "string" ||
+      typeof institutionName !== "string" ||
+      typeof officialWebsite !== "string" ||
+      typeof registrationDetails !== "string" ||
+      typeof walletAddress !== "string"
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid institution details.",
+      });
+    }
+
+    const normalizedEmail = officialEmail.toLowerCase().trim();
+
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-    if (!emailRegex.test(officialEmail)) {
+    if (!emailRegex.test(normalizedEmail)) {
       return res.status(400).json({
         success: false,
         message: "Please provide a valid institutional email address.",
@@ -64,10 +93,12 @@ router.post("/register", async (req, res) => {
       });
     }
 
+    const normalizedWallet = walletAddress.toLowerCase();
+
     const existingInstitution = await Institution.findOne({
       $or: [
-        { officialEmail: officialEmail.toLowerCase().trim() },
-        { walletAddress: walletAddress.toLowerCase() },
+        { officialEmail: normalizedEmail },
+        { walletAddress: normalizedWallet },
       ],
     });
 
@@ -79,16 +110,20 @@ router.post("/register", async (req, res) => {
       });
     }
 
+    const hashedPassword = await bcrypt.hash(password, 12);
+
     const institution = await Institution.create({
       institutionName: institutionName.trim(),
       officialWebsite: officialWebsite.trim(),
-      officialEmail: officialEmail.toLowerCase().trim(),
+      officialEmail: normalizedEmail,
+      password: hashedPassword,
       registrationDetails: registrationDetails.trim(),
-      walletAddress: walletAddress.toLowerCase(),
+      walletAddress: normalizedWallet,
       verificationDocuments: Array.isArray(verificationDocuments)
         ? verificationDocuments
         : [],
       applicationStatus: "pending",
+      isActive: true,
     });
 
     return res.status(201).json({
@@ -107,9 +142,112 @@ router.post("/register", async (req, res) => {
   } catch (error) {
     console.error("Institution registration error:", error);
 
+    if (error.code === 11000) {
+      return res.status(409).json({
+        success: false,
+        message: "An institution with this email or wallet is already registered.",
+      });
+    }
+
     return res.status(500).json({
       success: false,
       message: "Unable to submit institution registration.",
+    });
+  }
+});
+
+// ==========================================
+// PUBLIC: INSTITUTION LOGIN
+// ==========================================
+
+router.post("/login", async (req, res) => {
+  try {
+    const { officialEmail, password } = req.body;
+
+    if (
+      typeof officialEmail !== "string" ||
+      typeof password !== "string" ||
+      !officialEmail.trim() ||
+      !password
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Institution email and password are required.",
+      });
+    }
+
+    if (!process.env.JWT_SECRET) {
+      return res.status(500).json({
+        success: false,
+        message: "Authentication is not configured on the server.",
+      });
+    }
+
+    const normalizedEmail = officialEmail.toLowerCase().trim();
+
+    // Explicitly select password because the schema uses select: false
+    const institution = await Institution.findOne({
+      officialEmail: normalizedEmail,
+    }).select("+password");
+
+    if (!institution) {
+      return res.status(401).json({
+        success: false,
+        message: "Invalid email or password.",
+      });
+    }
+
+    if (!institution.isActive) {
+      return res.status(403).json({
+        success: false,
+        message: "This institution account is inactive.",
+      });
+    }
+
+    const passwordMatches = await bcrypt.compare(
+      password,
+      institution.password
+    );
+
+    if (!passwordMatches) {
+      return res.status(401).json({
+        success: false,
+        message: "Invalid email or password.",
+      });
+    }
+
+    // Generate institution JWT
+    const token = jwt.sign(
+      {
+        id: institution._id.toString(),
+        role: "institution",
+      },
+      process.env.JWT_SECRET,
+      {
+        expiresIn: "1d",
+      }
+    );
+
+    return res.status(200).json({
+      success: true,
+      message: "Institution login successful.",
+      token,
+      institution: {
+        id: institution._id,
+        institutionName: institution.institutionName,
+        officialEmail: institution.officialEmail,
+        walletAddress: institution.walletAddress,
+        applicationStatus: institution.applicationStatus,
+        rejectionReason: institution.rejectionReason,
+        approvedAt: institution.approvedAt,
+      },
+    });
+  } catch (error) {
+    console.error("Institution login error:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Unable to log in to institution account.",
     });
   }
 });
@@ -135,6 +273,42 @@ router.get("/pending", authMiddleware, async (req, res) => {
     return res.status(500).json({
       success: false,
       message: "Unable to fetch pending applications.",
+    });
+  }
+});
+
+// ==========================================
+// ADMIN: VIEW APPLICATIONS BY STATUS
+// ==========================================
+
+router.get("/status/:status", authMiddleware, async (req, res) => {
+  try {
+    const { status } = req.params;
+
+    const allowedStatuses = ["pending", "approved", "rejected"];
+
+    if (!allowedStatuses.includes(status)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid application status.",
+      });
+    }
+
+    const institutions = await Institution.find({
+      applicationStatus: status,
+    }).sort({ createdAt: -1 });
+
+    return res.status(200).json({
+      success: true,
+      count: institutions.length,
+      institutions,
+    });
+  } catch (error) {
+    console.error("Fetch institutions by status error:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Unable to fetch institution applications.",
     });
   }
 });

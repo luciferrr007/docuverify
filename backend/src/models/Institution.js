@@ -20,6 +20,18 @@ const institutionSchema = new mongoose.Schema(
       required: true,
       lowercase: true,
       trim: true,
+      unique: true,
+    },
+
+    password: {
+      type: String,
+      required: true,
+      select: false,
+    },
+
+    isActive: {
+      type: Boolean,
+      default: true,
     },
 
     registrationDetails: {

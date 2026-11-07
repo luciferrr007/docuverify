@@ -1,8 +1,10 @@
+
 import {
   BrowserRouter,
   Routes,
   Route,
   Link,
+  Navigate,
   useRouteError,
   isRouteErrorResponse,
 } from "react-router-dom";
@@ -16,13 +18,46 @@ import Footer from "@/components/Footer";
 import Landing from "@/routes/index";
 import IssuePage from "@/routes/issue";
 import VerifyPage from "@/routes/verify";
+import AdminLogin from "@/routes/admin-login";
+import AdminDashboard from "@/routes/admin-dashboard";
+import InstitutionLogin from "@/routes/institution-login";
+import InstitutionRegister from "@/routes/institution-register";
+import InstitutionDashboard from "@/routes/institution-dashboard";
+
+// Protects the Issue Credential page.
+function InstitutionProtectedRoute({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  const token = sessionStorage.getItem("institutionToken");
+  const storedInstitution = sessionStorage.getItem("institution");
+
+  if (!token || !storedInstitution) {
+    return <Navigate to="/institution/login" replace />;
+  }
+
+  try {
+    const institution = JSON.parse(storedInstitution);
+
+    if (institution.applicationStatus !== "approved") {
+      return <Navigate to="/institution/dashboard" replace />;
+    }
+  } catch {
+    return <Navigate to="/institution/login" replace />;
+  }
+
+  return <>{children}</>;
+}
 
 function NotFound() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <div className="max-w-md text-center">
         <h1 className="text-7xl font-bold text-foreground">404</h1>
-        <h2 className="mt-4 text-xl font-semibold text-foreground">Page not found</h2>
+        <h2 className="mt-4 text-xl font-semibold text-foreground">
+          Page not found
+        </h2>
         <p className="mt-2 text-sm text-muted-foreground">
           The page you're looking for doesn't exist or has been moved.
         </p>
@@ -51,9 +86,14 @@ function ErrorPage() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <div className="max-w-md text-center">
-        <h1 className="text-xl font-semibold text-foreground">This page didn't load</h1>
+        <h1 className="text-xl font-semibold text-foreground">
+          This page didn't load
+        </h1>
         <p className="mt-2 text-sm text-muted-foreground">{message}</p>
-        <Link to="/" className="mt-6 inline-flex rounded-md border border-input px-4 py-2 text-sm">
+        <Link
+          to="/"
+          className="mt-6 inline-flex rounded-md border border-input px-4 py-2 text-sm"
+        >
           Go home
         </Link>
       </div>
@@ -71,8 +111,36 @@ export default function App() {
           <main className="flex-1">
             <Routes>
               <Route path="/" element={<Landing />} />
-              <Route path="/issue" element={<IssuePage />} />
+
+              <Route
+                path="/issue"
+                element={
+                  <InstitutionProtectedRoute>
+                    <IssuePage />
+                  </InstitutionProtectedRoute>
+                }
+              />
+
               <Route path="/verify" element={<VerifyPage />} />
+
+              <Route path="/admin/login" element={<AdminLogin />} />
+              <Route path="/admin/dashboard" element={<AdminDashboard />} />
+
+              <Route
+                path="/institution/login"
+                element={<InstitutionLogin />}
+              />
+
+              <Route
+                path="/institution/register"
+                element={<InstitutionRegister />}
+              />
+
+              <Route
+                path="/institution/dashboard"
+                element={<InstitutionDashboard />}
+              />
+
               <Route path="*" element={<NotFound />} />
             </Routes>
           </main>
