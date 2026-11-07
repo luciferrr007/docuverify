@@ -20,6 +20,9 @@ app.get("/", (req, res) => {
 
 // Credential routes
 app.use("/api/credentials", require("./routes/credentialRoutes"));
+// Institution routes
+app.use("/api/institutions", require("./routes/institutionRoutes"));
+app.use("/api/admin", require("./routes/adminRoutes"));
 
 // Start server
 const PORT = process.env.PORT || 5000;
