@@ -60,6 +60,39 @@ const FIELD_LABELS: Record<string, string> = {
   issuingAuthority: "Issuing Authority",
 };
 
+/**
+ * Extract a Token ID from either:
+ * 1. A raw Token ID.
+ * 2. A complete DocuVerify verification URL.
+ */
+function extractTokenId(value: string): string | null {
+  const trimmed = value.trim();
+
+  // Support existing QR codes containing only a Token ID.
+  if (TOKEN_ID_PATTERN.test(trimmed)) {
+    return trimmed;
+  }
+
+  // Support QR codes containing a verification URL.
+  try {
+    const url = new URL(trimmed);
+
+    const tokenId = url.searchParams.get("tokenId");
+
+    if (
+      url.pathname.endsWith("/verify") &&
+      tokenId &&
+      TOKEN_ID_PATTERN.test(tokenId)
+    ) {
+      return tokenId;
+    }
+  } catch {
+    return null;
+  }
+
+  return null;
+}
+
 function recreateCanonicalData(credential: VerifiedCredential): string {
   const canonicalOrder: Record<string, string[]> = {
     academic: [
@@ -138,6 +171,8 @@ export default function VerifyPage() {
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
+  const autoVerifiedRef = useRef(false);
+
   /**
    * Verify a credential using its Token ID.
    * Credential data is retrieved from MongoDB through the backend API.
@@ -188,7 +223,9 @@ export default function VerifyPage() {
       console.error("Credential verification failed:", error);
 
       const message =
-        error instanceof Error ? error.message : "Unable to verify credential.";
+        error instanceof Error
+          ? error.message
+          : "Unable to verify credential.";
 
       if (message.toLowerCase().includes("not found")) {
         setState({
@@ -196,17 +233,54 @@ export default function VerifyPage() {
           tokenId: trimmed,
         });
       } else {
-        window.alert(
-          `Unable to verify this credential: ${message}`,
-        );
+        window.alert(`Unable to verify this credential: ${message}`);
       }
     } finally {
       setVerifying(false);
     }
   }, []);
 
+  /**
+   * Automatically verify when the page is opened with:
+   *
+   * /verify?tokenId=DCR-2026-XXXXXXXX
+   */
+  useEffect(() => {
+    if (autoVerifiedRef.current) return;
+
+    const params = new URLSearchParams(window.location.search);
+
+    const urlTokenId = params.get("tokenId");
+
+    if (!urlTokenId) return;
+
+    const extractedTokenId = extractTokenId(urlTokenId);
+
+    if (!extractedTokenId) {
+      setScanError("Invalid credential verification link.");
+      return;
+    }
+
+    autoVerifiedRef.current = true;
+
+    setTokenId(extractedTokenId);
+
+    verifyByTokenId(extractedTokenId);
+  }, [verifyByTokenId]);
+
   const handleVerify = () => {
-    verifyByTokenId(tokenId);
+    const extractedTokenId = extractTokenId(tokenId);
+
+    if (!extractedTokenId) {
+      setState({
+        kind: "not-found",
+        tokenId: tokenId.trim(),
+      });
+      return;
+    }
+
+    setTokenId(extractedTokenId);
+    verifyByTokenId(extractedTokenId);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -248,21 +322,23 @@ export default function VerifyPage() {
 
   /**
    * Handle decoded QR content.
+   *
+   * Supports both raw Token IDs and complete verification URLs.
    */
   const handleDecoded = useCallback(
     async (decodedText: string) => {
-      const value = decodedText.trim();
+      const extractedTokenId = extractTokenId(decodedText);
 
-      if (!TOKEN_ID_PATTERN.test(value)) {
+      if (!extractedTokenId) {
         setScanError("Invalid Credential QR Code");
         return;
       }
 
       await closeQrDialog();
 
-      setTokenId(value);
+      setTokenId(extractedTokenId);
 
-      await verifyByTokenId(value);
+      await verifyByTokenId(extractedTokenId);
     },
     [closeQrDialog, verifyByTokenId],
   );
@@ -429,6 +505,7 @@ export default function VerifyPage() {
                 onChange={(e) => {
                   setTokenId(e.target.value);
                   setState({ kind: "idle" });
+                  setScanError(null);
                 }}
                 onKeyDown={handleKeyDown}
                 className="transition-colors focus:border-primary focus:ring-primary"
@@ -458,6 +535,10 @@ export default function VerifyPage() {
                 Verify with QR
               </Button>
             </div>
+
+            {scanError && !qrOpen && (
+              <p className="text-xs text-destructive">{scanError}</p>
+            )}
           </div>
         </div>
 
