@@ -1,7 +1,7 @@
 
 import { useState, useMemo, useCallback, useRef } from "react";
 import { QRCodeSVG } from "qrcode.react";
-import { Download } from "lucide-react";
+import { Download, ExternalLink } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 
@@ -122,6 +122,23 @@ export default function IssuePage() {
     [fields, values],
   );
 
+  // Build a verification URL using the current environment.
+  // This works on localhost as well as GitHub Pages.
+  const verificationUrl = useMemo(() => {
+    if (!tokenId) return "";
+
+    const basePath = import.meta.env.BASE_URL;
+
+    const url = new URL(
+      `${basePath}verify`,
+      window.location.origin,
+    );
+
+    url.searchParams.set("tokenId", tokenId);
+
+    return url.toString();
+  }, [tokenId]);
+
   // Changing any field invalidates the previously generated hash.
   const handleChange = useCallback((name: string, value: string) => {
     setValues((previous) => ({
@@ -239,7 +256,7 @@ export default function IssuePage() {
   const handleDownloadQR = () => {
     const svg = getQRCodeSvg();
 
-    if (!svg || !tokenId) return;
+    if (!svg || !tokenId || !verificationUrl) return;
 
     const serializer = new XMLSerializer();
     const svgString = serializer.serializeToString(svg);
@@ -272,7 +289,10 @@ export default function IssuePage() {
       URL.revokeObjectURL(url);
 
       canvas.toBlob((pngBlob) => {
-        if (!pngBlob) return;
+        if (!pngBlob) {
+          window.alert("Unable to download the QR code.");
+          return;
+        }
 
         const downloadUrl = URL.createObjectURL(pngBlob);
         const link = document.createElement("a");
@@ -349,7 +369,7 @@ export default function IssuePage() {
                 onClick={handleGenerateHash}
                 disabled={!allFilled || !!hash || hashing}
               >
-                {hashing ? "Generating…" : "Generate Fingerprint"}
+                {hashing ? "Generating..." : "Generate Fingerprint"}
               </Button>
 
               <Button
@@ -357,7 +377,7 @@ export default function IssuePage() {
                 disabled={!hash || anchored || saving}
                 variant="outline"
               >
-                {saving ? "Saving…" : "Save Credential"}
+                {saving ? "Saving..." : "Save Credential"}
               </Button>
 
               <Button
@@ -417,7 +437,7 @@ export default function IssuePage() {
               </div>
             )}
 
-            {qrVisible && tokenId && (
+            {qrVisible && tokenId && verificationUrl && (
               <div className="animate-fade-in-up mt-4 flex max-w-xs flex-col items-center rounded-xl border bg-card p-6 shadow-card">
                 <h3 className="mb-4 text-center text-sm font-semibold text-foreground">
                   Generated Verification QR Code
@@ -428,9 +448,9 @@ export default function IssuePage() {
                   className="rounded-lg bg-white p-2"
                 >
                   <QRCodeSVG
-                    value={tokenId}
-                    size={200}
-                    level="M"
+                    value={verificationUrl}
+                    size={240}
+                    level="H"
                     includeMargin
                   />
                 </div>
@@ -442,6 +462,10 @@ export default function IssuePage() {
                   </span>
                 </p>
 
+                <p className="mt-2 break-all text-center text-xs text-muted-foreground">
+                  {verificationUrl}
+                </p>
+
                 <div className="mt-4 flex flex-wrap justify-center gap-3">
                   <Button
                     onClick={handleDownloadQR}
@@ -451,6 +475,16 @@ export default function IssuePage() {
                   >
                     <Download className="h-4 w-4" />
                     Download QR Code
+                  </Button>
+
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="gap-2"
+                    onClick={() => window.open(verificationUrl, "_blank", "noopener,noreferrer")}
+                  >
+                    <ExternalLink className="h-4 w-4" />
+                    Open Verification
                   </Button>
                 </div>
               </div>
