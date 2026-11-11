@@ -1,12 +1,19 @@
+
 {
   "name": "blockchain",
   "version": "1.0.0",
-  "description": "",
+  "description": "DocuVerify smart contract development and deployment",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "compile": "hardhat compile",
+    "test": "hardhat test",
+    "deploy:amoy": "hardhat ignition deploy ignition/modules/DocuVerify.ts --network polygonAmoy"
   },
-  "keywords": [],
+  "keywords": [
+    "docuverify",
+    "blockchain",
+    "smart-contracts"
+  ],
   "author": "",
   "license": "ISC",
   "type": "module",

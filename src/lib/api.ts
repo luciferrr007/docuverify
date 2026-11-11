@@ -40,6 +40,44 @@ export interface VerifyCredentialResponse {
   credential: IssueCredentialResponse["credential"];
 }
 
+export type BlockchainStatus =
+  | "not_registered"
+  | "pending"
+  | "confirmed"
+  | "failed";
+
+export interface InstitutionCredential {
+  tokenId: string;
+  documentType: string;
+  documentTypeKey: "academic" | "license" | "government";
+  issuedAt: string;
+  createdAt: string;
+  blockchainStatus: BlockchainStatus;
+  status: "active" | "revoked";
+  transactionHash: string | null;
+  blockNumber: number | null;
+}
+
+export interface InstitutionCredentialSummary {
+  total: number;
+  confirmed: number;
+  pending: number;
+  failed: number;
+  notRegistered: number;
+}
+
+export interface InstitutionCredentialsResponse {
+  success: boolean;
+  message: string;
+  count: number;
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+  summary: InstitutionCredentialSummary;
+  credentials: InstitutionCredential[];
+}
+
 // ==========================================
 // COMMON RESPONSE HANDLER
 // ==========================================
@@ -77,6 +115,34 @@ export async function issueCredential(
   });
 
   return handleResponse<IssueCredentialResponse>(response);
+}
+
+// ==========================================
+// INSTITUTION CREDENTIAL HISTORY
+// ==========================================
+
+export async function getInstitutionCredentials(
+  page = 1,
+  signal?: AbortSignal
+): Promise<InstitutionCredentialsResponse> {
+  const token = sessionStorage.getItem("institutionToken");
+
+  if (!token) {
+    throw new Error("Please log in to view your credentials.");
+  }
+
+  const response = await fetch(
+    `${API_BASE_URL}/credentials/mine?page=${page}`,
+    {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      signal: signal ?? null,
+    }
+  );
+
+  return handleResponse<InstitutionCredentialsResponse>(response);
 }
 
 // ==========================================
@@ -233,10 +299,8 @@ export async function institutionLogin(
 
   const result = await handleResponse<InstitutionLoginResponse>(response);
 
-  // Save the institution JWT for authenticated requests
   sessionStorage.setItem("institutionToken", result.token);
 
-  // Save institution details for the frontend
   sessionStorage.setItem(
     "institution",
     JSON.stringify(result.institution)

@@ -7,6 +7,7 @@ contract DocuVerify {
 
     struct Credential {
         bytes32 fingerprint;
+        address issuer;
         uint256 registeredAt;
         bool exists;
     }
@@ -21,7 +22,10 @@ contract DocuVerify {
     );
 
     modifier onlyOwner() {
-        require(msg.sender == owner, "Only owner can register credentials");
+        require(
+            msg.sender == owner,
+            "Only platform owner can register credentials"
+        );
         _;
     }
 
@@ -31,14 +35,32 @@ contract DocuVerify {
 
     function registerCredential(
         string calldata tokenId,
-        bytes32 fingerprint
+        bytes32 fingerprint,
+        address issuer
     ) external onlyOwner {
-        require(bytes(tokenId).length > 0, "Token ID cannot be empty");
-        require(fingerprint != bytes32(0), "Fingerprint cannot be empty");
-        require(!credentials[tokenId].exists, "Credential already registered");
+        require(
+            bytes(tokenId).length > 0,
+            "Token ID cannot be empty"
+        );
+
+        require(
+            fingerprint != bytes32(0),
+            "Fingerprint cannot be empty"
+        );
+
+        require(
+            issuer != address(0),
+            "Issuer address cannot be zero"
+        );
+
+        require(
+            !credentials[tokenId].exists,
+            "Credential already registered"
+        );
 
         credentials[tokenId] = Credential({
             fingerprint: fingerprint,
+            issuer: issuer,
             registeredAt: block.timestamp,
             exists: true
         });
@@ -46,7 +68,7 @@ contract DocuVerify {
         emit CredentialRegistered(
             tokenId,
             fingerprint,
-            msg.sender,
+            issuer,
             block.timestamp
         );
     }
@@ -58,6 +80,7 @@ contract DocuVerify {
         view
         returns (
             bytes32 fingerprint,
+            address issuer,
             uint256 registeredAt,
             bool exists
         )
@@ -66,6 +89,7 @@ contract DocuVerify {
 
         return (
             credential.fingerprint,
+            credential.issuer,
             credential.registeredAt,
             credential.exists
         );

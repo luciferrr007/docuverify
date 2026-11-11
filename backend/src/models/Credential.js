@@ -1,3 +1,4 @@
+
 const mongoose = require("mongoose");
 
 const credentialSchema = new mongoose.Schema(
@@ -33,9 +34,70 @@ const credentialSchema = new mongoose.Schema(
       match: /^[a-f0-9]{64}$/,
     },
 
+    issuanceKey: {
+      type: String,
+      lowercase: true,
+      match: /^[a-f0-9]{64}$/,
+    },
+
     issuedAt: {
       type: Date,
       required: true,
+    },
+
+    issuerName: {
+      type: String,
+      trim: true,
+    },
+
+    issuerWalletAddress: {
+      type: String,
+      lowercase: true,
+      match: /^0x[a-f0-9]{40}$/,
+    },
+
+    blockchainStatus: {
+      type: String,
+      enum: [
+        "not_registered",
+        "pending",
+        "confirmed",
+        "failed",
+      ],
+      default: "not_registered",
+    },
+
+    transactionHash: {
+      type: String,
+      lowercase: true,
+      match: /^0x[a-f0-9]{64}$/,
+    },
+
+    transactionNonce: {
+      type: Number,
+    },
+
+    transactionChainId: {
+      type: String,
+    },
+
+    transactionSubmittedAt: {
+      type: Date,
+    },
+
+    blockNumber: {
+      type: Number,
+    },
+
+    contractAddress: {
+      type: String,
+      lowercase: true,
+      match: /^0x[a-f0-9]{40}$/,
+    },
+
+    blockchainNetwork: {
+      type: String,
+      enum: ["polygon-amoy"],
     },
 
     status: {
@@ -46,7 +108,23 @@ const credentialSchema = new mongoose.Schema(
   },
   {
     timestamps: true,
-  },
+  }
 );
 
-module.exports = mongoose.model("Credential", credentialSchema);
+credentialSchema.index(
+  { issuanceKey: 1 },
+  {
+    unique: true,
+    name: "unique_issuance_key",
+    partialFilterExpression: {
+      issuanceKey: {
+        $type: "string",
+      },
+    },
+  }
+);
+
+module.exports = mongoose.model(
+  "Credential",
+  credentialSchema
+);
